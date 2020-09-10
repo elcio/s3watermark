@@ -3,7 +3,9 @@
 mkdir -p ~/.s3watermark
 
 if [ "$2" == "" ]; then
-    echo Usage: $0 watermark.png s3://bucket/path/
+    echo "Usage: $0 watermark.png s3://bucket/path/ [gravity]"
+    echo "  Default gravity is center."
+    echo "  Possible values are NorthWest, North, NorthEast, West, Center, East, SouthWest, South, SouthEast"
     exit 0
 fi
 
@@ -11,15 +13,19 @@ bucket=$(echo $2|cut -d'/' -f 3)
 
 if [[ "$2" =~ ^.*/$ ]]; then
     for url in $(aws s3 ls --recursive $2 | sed -e "s/.* /s3:\/\/$bucket\//"); do
-        $0 $1 $url
+        $0 $1 $url $3
     done
 else
+    gravity=center
+    if [ "$3" != "" ];then
+        gravity="$3"
+    fi
     hash=$(echo -n $2|md5sum|cut -d ' ' -f 1)
     extension=$(echo -n $2|sed -e 's/.*\.//')
     tempfile=~/.s3watermark/$hash.$extension
     if [ ! -f $tempfile ]; then
         aws s3 cp $2 $tempfile
-        convert $tempfile $1 -gravity center -composite $tempfile
+        convert $tempfile $1 -gravity $gravity -composite $tempfile
         aws s3 cp $tempfile $2
     fi
 fi
